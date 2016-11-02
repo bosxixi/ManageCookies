@@ -1,0 +1,22 @@
+{
+    "manifest_version": 2,
+    "name": "Manage Cookies",
+    "description": "This extension manage the cookie store.",
+    "version": "1.0",
+    "browser_action": {
+        "default_icon": { // optional
+            "16": "cookie.png", // optional
+            "24": "cookie.png", // optional
+            "32": "cookie.png" // optional
+        },
+        "default_popup": "main.html"
+    },
+    "permissions": [
+        "cookies",
+        "storage",
+        "unlimitedStorage",
+        "tabs",
+        "http://*/*",
+        "https://*/*"
+    ]
+}
