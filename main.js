@@ -64,30 +64,42 @@ var repo = {
 // Entry
 $(function () {
     repo.showAll();
-    repo.clear();
-    clearCookies(() => {});
-    repo.showAll();
     $("#btn").on("click", () => {
         var email = $("#filter").val();
         changeCookieStore(email);
     });
 
-    chrome.cookies.onChanged.addListener((changeInfo) => {
-        console.log("on cookies changed.");
-        if (changeInfo.removed == false) {
-            chrome.cookies.getAll({ storeId: "0" }, (cookies) => {
-                console.log("getAll");
-                getCurrentEmail((cookie) => {
-                    repo.set(cookie.value, cookies, () => {
-                        console.log("repo updated.");
-                        repo.showAll();
-                    });
-                })
-            });
-        }
-    })
+    $("#clear").on("click", () => {
+        repo.clear();
+    });
+    $("#remove").on("click", () => {
+        clearCookies(() => { });
+    });
+    // chrome.cookies.onChanged.addListener((changeInfo) => {
+    //     console.log("on cookies changed.");
+    //     chrome.cookies.getAll({ storeId: "0" }, (cookies) => {
+    //         console.log("getAll");
+    //         getCurrentEmail((cookie) => {
+    //             repo.set(cookie.value, cookies, () => {
+    //                 console.log("repo updated.");
+    //                 repo.showAll();
+    //             });
+    //         })
+    //     });
+    // })
 
 })
+
+function updateRepo(email, callback) {
+    chrome.cookies.getAll({ storeId: "0" }, (cookies) => {
+        console.log("getAll");
+        repo.set(email, cookies, () => {
+            console.log("repo updated.");
+            repo.showAll();
+            callback();
+        });
+    });
+}
 
 function changeCookieStore(email) {
     if (email == undefined | email == "") {
@@ -103,23 +115,37 @@ function changeCookieStore(email) {
     repo.get(email, (data) => {
         console.log(data);
         if (data == null) {
-            console.log("cookies do not exist on repo.");
-            clearCookies(() => {
-                setCurrentEmail(email, () => { });
-            });
+            getCurrentEmailCookie((currentEmailCookie) => {
+                if (currentEmailCookie == null) {
+                    clearCookies(() => {
+                        setCurrentEmail(email, (currentEmailCookie) => { updateRepo(currentEmailCookie.value, () => { }); });
+                    });
+                }
+                else {
+                    updateRepo(currentEmailCookie.value, () => {
+                        console.log("cookies do not exist on repo.");
+                        clearCookies(() => {
+                            setCurrentEmail(email, (currentEmailCookie) => { updateRepo(currentEmailCookie.value, () => { }); });
+                        });
+                    })
+                }
+
+            })
+
         }
         else {
             chrome.cookies.getAll({ storeId: "0" }, (cookies) => {
                 console.log("getAll");
-                getCurrentEmail((cookie) => {
-                    if (cookie == null) {
+                getCurrentEmailCookie((currentEmailCookie) => {
+                    if (currentEmailCookie == null) {
                         console.log("currentemail is not seted.");
                         clearCookies(() => {
-                            setCurrentEmail(email, () => { });
+                            setCurrentEmail(email, (currentEmailCookie) => { updateRepo(currentEmailCookie.value, () => { }); });
                         });
                     } else {
-                        clearCookies(() => {
-                            repo.set(cookie.value, cookies, () => {
+                        console.log("right here.");
+                        updateRepo(currentEmailCookie.value, () => {
+                            clearCookies(() => {
                                 console.log("All cookies recevies.")
                                 for (var i = 0; i < data.length; i++) {
                                     chrome.cookies.set(makeCookie(data[i]), () => {
@@ -128,6 +154,7 @@ function changeCookieStore(email) {
                                 };
                             });
                         });
+
                     }
                 })
 
@@ -136,7 +163,7 @@ function changeCookieStore(email) {
     });
 };
 
-function getCurrentEmail(callback) {
+function getCurrentEmailCookie(callback) {
     var filter = { url: "https://bosxixi.com", name: "currentEmail", storeId: "0" };
     console.log(filter);
     chrome.cookies.get(filter, (cookie) => {
@@ -147,9 +174,11 @@ function getCurrentEmail(callback) {
 function setCurrentEmail(email, callback) {
     var newcookie = { url: "https://bosxixi.com", name: "currentEmail", value: email, domain: "bosxixi.com", storeId: "0" };
     console.log(newcookie);
-    chrome.cookies.set(newcookie);
-    console.log("current email set to " + email);
-    callback();
+    chrome.cookies.set(newcookie, (cookie) => {
+        console.log("current email set to " + email);
+        callback(cookie);
+    });
+
 }
 
 function makeCookie(data) {
