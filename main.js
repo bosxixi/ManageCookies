@@ -29,8 +29,42 @@ function isEmpty(obj) {
 
     return true;
 }
-
 var repo = {
+    set: function (name, value, callback) {
+        $.ajax({
+            type: "POST",
+            url: "https://bosxixi.com/api/data/cookies",
+            data: { email: name, cookies: JSON.stringify(value) },
+            success: function () {
+                console.log("post success");
+                callback();
+            },
+            error: () => {
+                console.log("fail");
+            }
+        });
+    },
+    get: function (name, callback) {
+        $.ajax({
+            type: "GET",
+            url: "https://bosxixi.com/api/data/cookies?email=" + name,
+            success: function (data) {
+                console.log("get success");
+                callback(JSON.parse(data));
+            },
+            error: () => {
+                callback(null);
+            }
+        });
+    },
+    clear: function () {
+
+    },
+    showAll: function () {
+
+    }
+}
+var repolocal = {
     set: function (name, value, callback) {
         chrome.storage.local.set({ [name]: JSON.stringify(value) }, function () {
             callback();
@@ -69,8 +103,59 @@ $(function () {
         changeCookieStore(email);
     });
 
+    $("#get").on("click", () => {
+        var email = $("#filter").val();
+        getCurrentEmail((currentEmail) => {
+            if (currentEmail == null) {
+                console.log("cuurentEmail == null");
+                setCurrentEmail(email, () => {
+                    clearCookies(() => { });
+                });
+            }
+            else {
+                repo.get(email, (data) => {
+                    if (data == null) {
+                        repolocal.set("currentEmail", email, () => {
+                            clearCookies(() => { });
+                         });
+                    } else {
+                        clearCookies(() => {
+                            console.log("clearCookies.")
+                            for (var i = 0; i < data.length; i++) {
+                                chrome.cookies.set(makeCookie(data[i]), () => {
+                                    console.log("cookie seted." + i);
+                                });
+                            };
+                        });
+                    }
+
+                })
+            }
+        });
+    });
+
+    $("#set").on("click", () => {
+        getCurrentEmail((currentEmail) => {
+            updateRepo(currentEmail, () => {
+
+            });
+        });
+    });
+
+    $("#setCurrentMail").on("click", () => {
+        var email = $("#filter").val();
+        repolocal.set("currentEmail", email, () => { });
+    });
+
+    $("#getCurrentMail").on("click", () => {
+        repolocal.get("currentEmail", (email) => {
+            console.log("currentEmail:");
+            console.log(email);
+        });
+    });
+
     $("#clear").on("click", () => {
-        repo.clear();
+        repolocal.clear();
     });
     $("#remove").on("click", () => {
         clearCookies(() => { });
@@ -118,14 +203,14 @@ function changeCookieStore(email) {
             getCurrentEmailCookie((currentEmailCookie) => {
                 if (currentEmailCookie == null) {
                     clearCookies(() => {
-                        setCurrentEmail(email, (currentEmailCookie) => { updateRepo(currentEmailCookie.value, () => { }); });
+                        setCurrentEmailCookie(email, (currentEmailCookie) => { updateRepo(currentEmailCookie.value, () => { }); });
                     });
                 }
                 else {
                     updateRepo(currentEmailCookie.value, () => {
                         console.log("cookies do not exist on repo.");
                         clearCookies(() => {
-                            setCurrentEmail(email, (currentEmailCookie) => { updateRepo(currentEmailCookie.value, () => { }); });
+                            setCurrentEmailCookie(email, (currentEmailCookie) => { updateRepo(currentEmailCookie.value, () => { }); });
                         });
                     })
                 }
@@ -140,7 +225,7 @@ function changeCookieStore(email) {
                     if (currentEmailCookie == null) {
                         console.log("currentemail is not seted.");
                         clearCookies(() => {
-                            setCurrentEmail(email, (currentEmailCookie) => { updateRepo(currentEmailCookie.value, () => { }); });
+                            setCurrentEmailCookie(email, (currentEmailCookie) => { updateRepo(currentEmailCookie.value, () => { }); });
                         });
                     } else {
                         console.log("right here.");
@@ -163,6 +248,18 @@ function changeCookieStore(email) {
     });
 };
 
+function getCurrentEmail(callback) {
+    repolocal.get("currentEmail", (email) => {
+        callback(email);
+    });
+}
+
+function setCurrentEmail(email, callback) {
+    repolocal.set("currentEmail", email, () => {
+        callback();
+    });
+}
+
 function getCurrentEmailCookie(callback) {
     var filter = { url: "https://bosxixi.com", name: "currentEmail", storeId: "0" };
     console.log(filter);
@@ -171,7 +268,7 @@ function getCurrentEmailCookie(callback) {
     });
 }
 
-function setCurrentEmail(email, callback) {
+function setCurrentEmailCookie(email, callback) {
     var newcookie = { url: "https://bosxixi.com", name: "currentEmail", value: email, domain: "bosxixi.com", storeId: "0" };
     console.log(newcookie);
     chrome.cookies.set(newcookie, (cookie) => {
