@@ -105,32 +105,23 @@ $(function () {
 
     $("#get").on("click", () => {
         var email = $("#filter").val();
-        getCurrentEmail((currentEmail) => {
-            if (currentEmail == null) {
-                console.log("cuurentEmail == null");
-                setCurrentEmail(email, () => {
-                    clearCookies(() => { });
-                });
-            }
-            else {
-                repo.get(email, (data) => {
-                    if (data == null) {
-                        repolocal.set("currentEmail", email, () => {
-                            clearCookies(() => { });
-                         });
-                    } else {
-                        clearCookies(() => {
-                            console.log("clearCookies.")
-                            for (var i = 0; i < data.length; i++) {
-                                chrome.cookies.set(makeCookie(data[i]), () => {
-                                    console.log("cookie seted." + i);
-                                });
-                            };
+        repo.get(email, (data) => {
+            clearCookies(() => {
+                console.log("clearCookies.")
+                for (var i = 0; i < data.length; i++) {
+                    try {
+                        chrome.cookies.set(makeCookie(data[i]), () => {
+                            console.log("cookie seted." + i);
                         });
+                    } catch (err) {
+                        console.error("Error catched set cookie:\n" + err.description);
                     }
+                };
+                console.log("All cookies seted.");
 
-                })
-            }
+                window.location.href = "https://www.easports.com/fifa/ultimate-team/web-app";
+            });
+
         });
     });
 
@@ -302,11 +293,25 @@ function clearCookies(callback) {
     console.log("clearCookies");
     chrome.cookies.getAll({ storeId: "0" }, (cookies) => {
         for (var i = 0; i < cookies.length; i++) {
-            chrome.cookies.remove({ url: makeUrl(cookies[i]), name: cookies[i].name });
+            try {
+                chrome.cookies.remove({ url: makeUrl(cookies[i]), name: cookies[i].name });
+            } catch (err) {
+                console.error("Error catched deleting cookie:\n" + err.description);
+            }
+        }
+        console.log("ALl cookies cleared.");
+    })
+
+    chrome.cookies.getAll({ storeId: "0" }, (cookies) => {
+        for (var i = 0; i < cookies.length; i++) {
+            try {
+                chrome.cookies.remove({ url: makeUrl(cookies[i]), name: cookies[i].name });
+            } catch (err) {
+                console.error("Error catched deleting cookie:\n" + err.description);
+            }
         }
         console.log("ALl cookies cleared.");
         callback();
     })
-
 };
 
